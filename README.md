@@ -1,4 +1,4 @@
-# RF Passive Device Tools RF 无源器件设计工具集
+# RF Passive Device Tools 射频无源器件设计工具集
 
 This repository stores small engineering tools, scripts, examples, and notes for RF passive device design and parameter extraction.
 
