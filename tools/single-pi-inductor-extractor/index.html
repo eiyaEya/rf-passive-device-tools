@@ -1,0 +1,1149 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>电感单π模型参数提取</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f5;
+      --panel: #ffffff;
+      --ink: #18201b;
+      --muted: #68716b;
+      --line: #d8ded7;
+      --accent: #1d7f63;
+      --accent-2: #b85c2c;
+      --warn: #9d6a00;
+      --soft: #eef5f1;
+      --shadow: 0 10px 30px rgba(30, 43, 35, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    header {
+      padding: 18px 22px 12px;
+      border-bottom: 1px solid var(--line);
+      background: #fbfcfa;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .sub {
+      margin-top: 5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+      padding: 16px;
+      max-width: 1760px;
+      margin: 0 auto;
+    }
+
+    section,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    section {
+      padding: 14px;
+    }
+
+    h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .left {
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 145px;
+      resize: vertical;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      font: 12px/1.45 Consolas, "SFMono-Regular", monospace;
+      color: #111915;
+      background: #fbfcfb;
+    }
+
+    textarea:focus,
+    input:focus {
+      outline: 2px solid rgba(29, 127, 99, 0.18);
+      border-color: var(--accent);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 10px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      min-height: 34px;
+      border-radius: 6px;
+      padding: 7px 11px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    button.primary {
+      border-color: #14684f;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 700;
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.66;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .settings-grid {
+      align-items: stretch;
+    }
+
+    .setting-card {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 10px;
+      background: #fbfcfb;
+      color: var(--ink);
+      min-height: 116px;
+    }
+
+    .setting-card .setting-title {
+      color: #39433d;
+      font-weight: 700;
+      font-size: 13px;
+    }
+
+    .setting-card input {
+      margin-top: 2px;
+      background: #fff;
+    }
+
+    label {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 7px 8px;
+      font: 13px Consolas, "SFMono-Regular", monospace;
+      background: #fbfcfb;
+      color: var(--ink);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 7px 6px;
+      text-align: left;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      color: #4a554e;
+      background: var(--soft);
+      font-weight: 700;
+    }
+
+    td input {
+      padding: 5px 6px;
+      font-size: 12px;
+    }
+
+    .data-table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: auto;
+      background: #fff;
+      max-height: 390px;
+    }
+
+    .data-table {
+      min-width: 980px;
+      table-layout: fixed;
+    }
+
+    .data-table.reciprocal {
+      min-width: 600px;
+    }
+
+    .data-table.reciprocal [data-col-group="mirror"] {
+      display: none;
+    }
+
+    .data-table th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      text-align: center;
+    }
+
+    .data-table th:first-child,
+    .data-table td:first-child {
+      width: 112px;
+      position: sticky;
+      left: 0;
+      z-index: 2;
+      background: #fff;
+    }
+
+    .data-table th:first-child {
+      background: var(--soft);
+      z-index: 3;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+      width: 46px;
+      text-align: center;
+    }
+
+    .data-table input {
+      min-width: 82px;
+      text-align: right;
+    }
+
+    .icon-btn {
+      width: 28px;
+      min-height: 28px;
+      padding: 0;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    details {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfb;
+      padding: 8px 10px 10px;
+    }
+
+    summary {
+      cursor: pointer;
+      color: #39433d;
+      font-weight: 700;
+    }
+
+    .mode-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 10px;
+      padding: 9px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfb;
+    }
+
+    .check-label {
+      display: inline-flex;
+      grid-template-columns: none;
+      gap: 8px;
+      align-items: center;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .check-label input {
+      width: auto;
+    }
+
+    .help {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .status {
+      min-height: 34px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fbfcfb;
+      color: var(--muted);
+      line-height: 1.35;
+    }
+
+    .status.warn {
+      border-color: rgba(157, 106, 0, 0.35);
+      background: #fff8e8;
+      color: var(--warn);
+    }
+
+    .status.ok {
+      border-color: rgba(29, 127, 99, 0.35);
+      background: #ecf7f2;
+      color: #16664f;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px;
+      background: #fbfcfb;
+    }
+
+    .metric .k {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric .v {
+      margin-top: 5px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .export-row {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) auto;
+      gap: 10px;
+      align-items: end;
+      margin-top: 12px;
+    }
+
+    .note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 9px;
+    }
+
+    .two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 980px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+
+      .result-grid,
+      .grid-3,
+      .two {
+        grid-template-columns: 1fr;
+      }
+
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>电感单π模型参数提取</h1>
+    <div class="sub">输入多频点 S 参数 dB 幅值与相位，拟合 C<sub>ox</sub>、C<sub>si</sub>、R<sub>si</sub>、L<sub>s</sub>、C<sub>o</sub>、r<sub>s</sub>(DC)、L<sub>p1</sub>、R<sub>p1</sub>。</div>
+  </header>
+
+  <main>
+    <div class="left">
+      <section>
+        <h2>S 参数数据</h2>
+        <div class="mode-row">
+          <label class="check-label">
+            <input id="reciprocalMode" type="checkbox" checked />
+            对称互易网络
+          </label>
+          <span class="help">开启后只需输入 S<sub>11</sub> 和 S<sub>21</sub>；程序自动令 S<sub>22</sub>=S<sub>11</sub>，S<sub>12</sub>=S<sub>21</sub>。</span>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table reciprocal" id="sparamTable">
+            <thead>
+              <tr>
+                <th>freq_GHz</th>
+                <th>S<sub>11</sub> dB</th>
+                <th>S<sub>11</sub> deg</th>
+                <th>S<sub>21</sub> dB</th>
+                <th>S<sub>21</sub> deg</th>
+                <th data-col-group="mirror">S<sub>12</sub> dB</th>
+                <th data-col-group="mirror">S<sub>12</sub> deg</th>
+                <th data-col-group="mirror">S<sub>22</sub> dB</th>
+                <th data-col-group="mirror">S<sub>22</sub> deg</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="toolbar">
+          <button id="addRowBtn">新增频点</button>
+          <button id="trimRowsBtn">删除空行</button>
+          <button id="loadSampleBtn">载入样例</button>
+          <button id="clearBtn">清空</button>
+          <input id="fileInput" type="file" accept=".csv,.txt" />
+        </div>
+        <details>
+          <summary>CSV 批量导入</summary>
+          <textarea id="dataInput" spellcheck="false"></textarea>
+          <div class="toolbar">
+            <button id="importCsvBtn">导入到表格</button>
+          </div>
+          <div class="note">列名：freq_GHz, S11_dB, S11_deg, S21_dB, S21_deg, S12_dB, S12_deg, S22_dB, S22_deg。freq_GHz 可填 0 表示 DC；互易模式下可只导入 S11 与 S21；也兼容旧表头 freq_Hz；相位列可缺省。</div>
+        </details>
+      </section>
+
+      <section>
+        <h2>拟合设置</h2>
+        <div class="grid-3 settings-grid">
+          <label class="setting-card">
+            <span class="setting-title">Z0 / ohm</span>
+            <input id="z0Input" type="number" step="any" value="50" />
+            <span class="help">S 参数参考阻抗，通常为 50 ohm。</span>
+          </label>
+          <label class="setting-card">
+            <span class="setting-title">多起点数量</span>
+            <input id="startsInput" type="number" min="1" max="80" step="1" value="24" />
+            <span class="help">优化器从多少组初值出发搜索。数值越大，越不容易陷入局部最优，但计算更慢。</span>
+          </label>
+          <label class="setting-card">
+            <span class="setting-title">每起点迭代</span>
+            <input id="itersInput" type="number" min="100" max="4000" step="50" value="900" />
+            <span class="help">每一组初值允许的最大搜索步数。数值越大，单次搜索更充分，但耗时增加。</span>
+          </label>
+        </div>
+        <div class="toolbar">
+          <button class="primary" id="fitBtn">开始提取</button>
+          <button id="resetBoundsBtn">恢复默认参数范围</button>
+        </div>
+        <div id="status" class="status">等待输入。</div>
+      </section>
+
+      <section>
+        <h2>提取结果</h2>
+        <div class="result-grid" id="summaryCards"></div>
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th>参数</th>
+              <th>数值</th>
+              <th>单位</th>
+              <th>SI 值</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="export-row">
+          <label>Description
+            <input id="descriptionInput" type="text" placeholder="例如: L_2nH_W8_S2_2026-07-25" />
+          </label>
+          <button id="exportTxtBtn">导出TXT文件</button>
+        </div>
+      </section>
+
+      <section>
+        <h2>初值与边界</h2>
+        <table id="paramTable">
+          <thead>
+            <tr>
+              <th style="width: 18%">参数</th>
+              <th style="width: 14%">单位</th>
+              <th>初值</th>
+              <th>下限</th>
+              <th>上限</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    const PARAMS = [
+      { key: "Cox", label: "Cox", labelHtml: "C<sub>ox</sub>", unit: "fF", scale: 1e-15, init: 50, lb: 0.1, ub: 5000 },
+      { key: "Csi", label: "Csi", labelHtml: "C<sub>si</sub>", unit: "fF", scale: 1e-15, init: 20, lb: 0.1, ub: 5000 },
+      { key: "Rsi", label: "Rsi", labelHtml: "R<sub>si</sub>", unit: "ohm", scale: 1, init: 500, lb: 1, ub: 1e6 },
+      { key: "Ls", label: "Ls", labelHtml: "L<sub>s</sub>", unit: "nH", scale: 1e-9, init: 1, lb: 0.01, ub: 50 },
+      { key: "Co", label: "Co", labelHtml: "C<sub>o</sub>", unit: "fF", scale: 1e-15, init: 20, lb: 0.01, ub: 5000 },
+      { key: "rs", label: "rs(DC)", labelHtml: "r<sub>s</sub>(DC)", unit: "ohm", scale: 1, init: 1, lb: 0.01, ub: 100 },
+      { key: "Lp1", label: "Lp1", labelHtml: "L<sub>p1</sub>", unit: "nH", scale: 1e-9, init: 0.2, lb: 0.001, ub: 20 },
+      { key: "Rp1", label: "Rp1", labelHtml: "R<sub>p1</sub>", unit: "ohm", scale: 1, init: 2000, lb: 10, ub: 1e7 }
+    ];
+
+    const SAMPLE = `freq_GHz,S11_dB,S11_deg,S21_dB,S21_deg,S12_dB,S12_deg,S22_dB,S22_deg
+1.0,-18.398,72.486,-0.128,5.475,-0.128,5.475,-18.398,72.486
+1.5,-14.646,70.459,-0.294,8.234,-0.294,8.234,-14.646,70.459
+2.0,-12.049,68.007,-0.536,11.020,-0.536,11.020,-12.049,68.007
+2.5,-10.080,64.875,-0.860,13.842,-0.860,13.842,-10.080,64.875
+3.0,-8.499,60.725,-1.279,16.720,-1.279,16.720,-8.499,60.725
+3.5,-7.184,55.058,-1.814,19.683,-1.814,19.683,-7.184,55.058
+4.0,-6.083,47.157,-2.494,22.779,-2.494,22.779,-6.083,47.157
+4.5,-5.181,35.988,-3.371,26.092,-3.371,26.092,-5.181,35.988
+5.0,-4.524,20.108,-4.544,29.799,-4.544,29.799,-4.524,20.108
+5.5,-4.258,-1.723,-6.268,34.419,-6.268,34.419,-4.258,-1.723
+6.0,-4.785,-28.104,-9.338,41.945,-9.338,41.945,-4.785,-28.104`;
+
+    const DATA_COLUMNS = ["freq_GHz", "S11_dB", "S11_deg", "S21_dB", "S21_deg", "S12_dB", "S12_deg", "S22_dB", "S22_deg"];
+    const dataInput = document.getElementById("dataInput");
+    const reciprocalMode = document.getElementById("reciprocalMode");
+    const sparamTable = document.getElementById("sparamTable");
+    const sparamBody = document.querySelector("#sparamTable tbody");
+    const paramBody = document.querySelector("#paramTable tbody");
+    const resultBody = document.querySelector("#resultTable tbody");
+    const cards = document.getElementById("summaryCards");
+    const statusBox = document.getElementById("status");
+    const fitBtn = document.getElementById("fitBtn");
+    const descriptionInput = document.getElementById("descriptionInput");
+    const exportTxtBtn = document.getElementById("exportTxtBtn");
+    let lastFitParams = null;
+
+    function c(re, im = 0) { return { re, im }; }
+    function cAdd(a, b) { return c(a.re + b.re, a.im + b.im); }
+    function cSub(a, b) { return c(a.re - b.re, a.im - b.im); }
+    function cMul(a, b) { return c(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re); }
+    function cDiv(a, b) {
+      const d = b.re * b.re + b.im * b.im;
+      return c((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d);
+    }
+    function cInv(a) {
+      const d = a.re * a.re + a.im * a.im;
+      return c(a.re / d, -a.im / d);
+    }
+    function cAbs(a) { return Math.hypot(a.re, a.im); }
+    function cScale(a, s) { return c(a.re * s, a.im * s); }
+    function cFromPolar(mag, deg) {
+      const rad = deg * Math.PI / 180;
+      return c(mag * Math.cos(rad), mag * Math.sin(rad));
+    }
+
+    function parallelZ(...zs) {
+      let y = c(0, 0);
+      for (const z of zs) y = cAdd(y, cInv(z));
+      return cInv(y);
+    }
+
+    function labelText(param) {
+      const tmp = document.createElement("span");
+      tmp.innerHTML = param.labelHtml;
+      return tmp.textContent || param.label;
+    }
+
+    function renderParamInputs() {
+      paramBody.innerHTML = "";
+      for (const p of PARAMS) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${p.labelHtml}</td>
+          <td>${p.unit}</td>
+          <td><input data-param="${p.key}" data-field="init" type="number" step="any" value="${p.init}"></td>
+          <td><input data-param="${p.key}" data-field="lb" type="number" step="any" value="${p.lb}"></td>
+          <td><input data-param="${p.key}" data-field="ub" type="number" step="any" value="${p.ub}"></td>`;
+        paramBody.appendChild(tr);
+      }
+    }
+
+    function renderDataRows(rows) {
+      sparamBody.innerHTML = "";
+      const source = rows && rows.length ? rows : Array.from({ length: 6 }, () => ({}));
+      for (const row of source) addDataRow(row);
+      updateReciprocalMode();
+    }
+
+    function addDataRow(row = {}) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = DATA_COLUMNS.map(col => {
+        const value = row[col] ?? "";
+        const group = (col.startsWith("S12") || col.startsWith("S22")) ? ` data-col-group="mirror"` : "";
+        return `<td${group}><input data-col="${col}" type="number" step="any" value="${value}"></td>`;
+      }).join("") + `<td><button class="icon-btn" data-action="delete-row" title="删除该频点" aria-label="删除该频点">×</button></td>`;
+      sparamBody.appendChild(tr);
+      updateReciprocalMode();
+    }
+
+    function updateReciprocalMode() {
+      sparamTable.classList.toggle("reciprocal", reciprocalMode.checked);
+    }
+
+    function applyReciprocalMirror(row) {
+      if (!reciprocalMode.checked) return row;
+      if ("S11_dB" in row) row.S22_dB = row.S11_dB;
+      if ("S11_deg" in row) row.S22_deg = row.S11_deg;
+      if ("S21_dB" in row) row.S12_dB = row.S21_dB;
+      if ("S21_deg" in row) row.S12_deg = row.S21_deg;
+      return row;
+    }
+
+    function isGridRowEmpty(tr) {
+      return DATA_COLUMNS.every(col => {
+        const input = tr.querySelector(`input[data-col="${col}"]`);
+        return !input || input.value.trim() === "";
+      });
+    }
+
+    function trimEmptyDataRows() {
+      const rows = Array.from(sparamBody.querySelectorAll("tr"));
+      for (const tr of rows) {
+        if (isGridRowEmpty(tr) && sparamBody.children.length > 1) tr.remove();
+      }
+      if (!sparamBody.children.length) addDataRow();
+    }
+
+    function getDataRowsFromGrid() {
+      const rows = [];
+      const trs = Array.from(sparamBody.querySelectorAll("tr"));
+      for (let i = 0; i < trs.length; i++) {
+        const tr = trs[i];
+        if (isGridRowEmpty(tr)) continue;
+        const row = {};
+        for (const col of DATA_COLUMNS) {
+          const input = tr.querySelector(`input[data-col="${col}"]`);
+          const raw = input.value.trim();
+          if (raw === "") continue;
+          const value = Number(raw);
+          if (!Number.isFinite(value)) throw new Error(`第 ${i + 1} 行 ${col} 不是有效数字。`);
+          row[col] = value;
+        }
+        if (!Number.isFinite(row.freq_GHz) || row.freq_GHz < 0) {
+          throw new Error(`第 ${i + 1} 行需要填写非负 freq_GHz；0 表示 DC。`);
+        }
+        row.freq_Hz = row.freq_GHz * 1e9;
+        const requiredPorts = reciprocalMode.checked ? ["S11", "S21"] : ["S11", "S21", "S12", "S22"];
+        for (const s of requiredPorts) {
+          if (`${s}_deg` in row && !(`${s}_dB` in row)) {
+            throw new Error(`第 ${i + 1} 行填写了 ${s} 相位，但缺少 ${s} dB。`);
+          }
+        }
+        applyReciprocalMirror(row);
+        rows.push(row);
+      }
+      if (!rows.length) throw new Error("至少需要一行频点数据。");
+      const hasAnySparam = reciprocalMode.checked
+        ? rows.some(r => "S11_dB" in r || "S21_dB" in r)
+        : rows.some(r => "S11_dB" in r || "S21_dB" in r || "S12_dB" in r || "S22_dB" in r);
+      if (!hasAnySparam) {
+        throw new Error("至少需要一个 S 参数 dB 数据。");
+      }
+      return rows.sort((a, b) => a.freq_Hz - b.freq_Hz);
+    }
+
+    function resetParamInputs() {
+      for (const p of PARAMS) {
+        for (const field of ["init", "lb", "ub"]) {
+          const input = document.querySelector(`input[data-param="${p.key}"][data-field="${field}"]`);
+          input.value = p[field];
+        }
+      }
+    }
+
+    function getParamOptions() {
+      const init = [], lb = [], ub = [];
+      for (const p of PARAMS) {
+        const vals = {};
+        for (const field of ["init", "lb", "ub"]) {
+          const input = document.querySelector(`input[data-param="${p.key}"][data-field="${field}"]`);
+          vals[field] = Number(input.value);
+          if (!Number.isFinite(vals[field]) || vals[field] <= 0) {
+            throw new Error(`${p.label} 的 ${field} 必须为正数。`);
+          }
+        }
+        if (vals.lb >= vals.ub) throw new Error(`${p.label} 的下限必须小于上限。`);
+        init.push(vals.init * p.scale);
+        lb.push(vals.lb * p.scale);
+        ub.push(vals.ub * p.scale);
+      }
+      return { init, lb, ub };
+    }
+
+    function parseTable(text) {
+      const lines = text.trim().split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+      if (lines.length < 2) throw new Error("至少需要表头和一行数据。");
+      const delimiter = lines[0].includes("\t") ? "\t" : ",";
+      const headers = lines[0].split(delimiter).map(h => h.trim());
+      const index = new Map(headers.map((h, i) => [h.toLowerCase(), i]));
+      const freqCol = ["freq_ghz", "frequency_ghz", "freq_hz", "frequency_hz", "freq", "frequency", "f"].find(h => index.has(h));
+      if (!freqCol) throw new Error("缺少 freq_GHz 列。");
+      const freqIsHz = freqCol.endsWith("_hz");
+
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        const parts = lines[i].split(delimiter).map(x => x.trim());
+        if (parts.length < headers.length) continue;
+        const freqValue = Number(parts[index.get(freqCol)]);
+        if (!Number.isFinite(freqValue) || freqValue < 0) throw new Error(`第 ${i + 1} 行频率无效；允许 0 表示 DC。`);
+        const row = {
+          freq_GHz: freqIsHz ? freqValue / 1e9 : freqValue,
+          freq_Hz: freqIsHz ? freqValue : freqValue * 1e9
+        };
+
+        for (const s of ["S11", "S21", "S12", "S22"]) {
+          const dbIdx = index.get(`${s.toLowerCase()}_db`);
+          const degIdx = index.get(`${s.toLowerCase()}_deg`);
+          if (dbIdx !== undefined && parts[dbIdx] !== "") row[`${s}_dB`] = Number(parts[dbIdx]);
+          if (degIdx !== undefined && parts[degIdx] !== "") row[`${s}_deg`] = Number(parts[degIdx]);
+          if (`${s}_dB` in row && !Number.isFinite(row[`${s}_dB`])) throw new Error(`第 ${i + 1} 行 ${s}_dB 无效。`);
+          if (`${s}_deg` in row && !Number.isFinite(row[`${s}_deg`])) throw new Error(`第 ${i + 1} 行 ${s}_deg 无效。`);
+        }
+        rows.push(row);
+      }
+      if (!rows.some(r => "S11_dB" in r || "S21_dB" in r || "S12_dB" in r || "S22_dB" in r)) {
+        throw new Error("至少需要一个 S 参数 dB 列。");
+      }
+      return rows.sort((a, b) => a.freq_Hz - b.freq_Hz);
+    }
+
+    function singlePiSparams(freqs, p, z0) {
+      const [Cox, Csi, Rsi, Ls, Co, rs, Lp1, Rp1] = p;
+      const out = { S11: [], S21: [], S12: [], S22: [] };
+      for (const f of freqs) {
+        if (f === 0) {
+          const zSeriesDc = rs;
+          const normalized = zSeriesDc / z0;
+          const denominator = 2 + normalized;
+          const s11dc = c(normalized / denominator, 0);
+          const s21dc = c(2 / denominator, 0);
+          out.S11.push(s11dc);
+          out.S21.push(s21dc);
+          out.S12.push(s21dc);
+          out.S22.push(s11dc);
+          continue;
+        }
+        const w = 2 * Math.PI * f;
+        const jwLs = c(0, w * Ls);
+        const jwLp1 = c(0, w * Lp1);
+        const zMain = cAdd(c(rs, 0), jwLs);
+        const zSkin = cAdd(c(Rp1, 0), jwLp1);
+        const zCo = c(0, -1 / (w * Co));
+        const zs = parallelZ(zMain, zSkin, zCo);
+
+        const zCsi = c(0, -1 / (w * Csi));
+        const zSub = parallelZ(zCsi, c(Rsi, 0));
+        const zp = cAdd(c(0, -1 / (w * Cox)), zSub);
+
+        const zsOverZp = cDiv(zs, zp);
+        const zsOverZ0 = cScale(zs, 1 / z0);
+        const twoZpPlusZs = cAdd(cScale(zp, 2), zs);
+        const zpSq = cMul(zp, zp);
+        const capTerm = cScale(cDiv(twoZpPlusZs, zpSq), z0);
+        const d = cAdd(cAdd(cScale(cAdd(c(1, 0), zsOverZp), 2), zsOverZ0), capTerm);
+        const s11 = cDiv(cSub(zsOverZ0, capTerm), d);
+        const s21 = cDiv(c(2, 0), d);
+        out.S11.push(s11);
+        out.S21.push(s21);
+        out.S12.push(s21);
+        out.S22.push(s11);
+      }
+      return out;
+    }
+
+    function residualVector(x, data, bounds, z0) {
+      const p = x.map(v => Math.pow(10, v));
+      const freqs = data.map(r => r.freq_Hz);
+      const model = singlePiSparams(freqs, p, z0);
+      const res = [];
+      for (let i = 0; i < data.length; i++) {
+        for (const s of ["S11", "S21", "S12", "S22"]) {
+          const dbKey = `${s}_dB`;
+          const degKey = `${s}_deg`;
+          if (!(dbKey in data[i])) continue;
+          const pred = model[s][i];
+          if (degKey in data[i]) {
+            const obs = cFromPolar(Math.pow(10, data[i][dbKey] / 20), data[i][degKey]);
+            res.push(pred.re - obs.re, pred.im - obs.im);
+          } else {
+            const predDb = 20 * Math.log10(Math.max(cAbs(pred), 1e-300));
+            res.push(predDb - data[i][dbKey]);
+          }
+        }
+      }
+      for (let i = 0; i < x.length; i++) {
+        if (x[i] < bounds.lb[i]) res.push(100 * (bounds.lb[i] - x[i]));
+        if (x[i] > bounds.ub[i]) res.push(100 * (x[i] - bounds.ub[i]));
+      }
+      return res;
+    }
+
+    function objective(x, data, bounds, z0) {
+      const r = residualVector(x, data, bounds, z0);
+      let sum = 0;
+      for (const v of r) {
+        if (!Number.isFinite(v)) return 1e100;
+        sum += v * v;
+      }
+      return sum / Math.max(r.length, 1);
+    }
+
+    function makeRng(seed) {
+      let s = seed >>> 0;
+      return function rand() {
+        s = (1664525 * s + 1013904223) >>> 0;
+        return s / 4294967296;
+      };
+    }
+
+    function clampVec(x, lb, ub) {
+      return x.map((v, i) => Math.min(Math.max(v, lb[i]), ub[i]));
+    }
+
+    function nelderMead(start, data, bounds, z0, maxIter) {
+      const n = start.length;
+      const simplex = [clampVec(start.slice(), bounds.lb, bounds.ub)];
+      for (let i = 0; i < n; i++) {
+        const step = Math.max((bounds.ub[i] - bounds.lb[i]) * 0.05, 0.05);
+        const point = start.slice();
+        point[i] += step;
+        simplex.push(clampVec(point, bounds.lb, bounds.ub));
+      }
+      let vals = simplex.map(x => objective(x, data, bounds, z0));
+      const alpha = 1, gamma = 2, rho = 0.5, sigma = 0.5;
+
+      for (let iter = 0; iter < maxIter; iter++) {
+        const order = vals.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+        const s2 = order.map(i => simplex[i]);
+        const v2 = order.map(i => vals[i]);
+        for (let i = 0; i < simplex.length; i++) {
+          simplex[i] = s2[i];
+          vals[i] = v2[i];
+        }
+
+        const centroid = Array(n).fill(0);
+        for (let i = 0; i < n; i++) {
+          for (let j = 0; j < n; j++) centroid[j] += simplex[i][j] / n;
+        }
+
+        const worst = simplex[n];
+        const reflected = clampVec(centroid.map((v, j) => v + alpha * (v - worst[j])), bounds.lb, bounds.ub);
+        const fRef = objective(reflected, data, bounds, z0);
+
+        if (fRef < vals[0]) {
+          const expanded = clampVec(centroid.map((v, j) => v + gamma * (reflected[j] - v)), bounds.lb, bounds.ub);
+          const fExp = objective(expanded, data, bounds, z0);
+          simplex[n] = fExp < fRef ? expanded : reflected;
+          vals[n] = Math.min(fExp, fRef);
+        } else if (fRef < vals[n - 1]) {
+          simplex[n] = reflected;
+          vals[n] = fRef;
+        } else {
+          const contracted = clampVec(centroid.map((v, j) => v + rho * (worst[j] - v)), bounds.lb, bounds.ub);
+          const fCon = objective(contracted, data, bounds, z0);
+          if (fCon < vals[n]) {
+            simplex[n] = contracted;
+            vals[n] = fCon;
+          } else {
+            for (let i = 1; i <= n; i++) {
+              simplex[i] = clampVec(simplex[0].map((v, j) => v + sigma * (simplex[i][j] - v)), bounds.lb, bounds.ub);
+              vals[i] = objective(simplex[i], data, bounds, z0);
+            }
+          }
+        }
+      }
+
+      const bestIdx = vals.indexOf(Math.min(...vals));
+      return { x: simplex[bestIdx], cost: vals[bestIdx] };
+    }
+
+    async function fitModel() {
+      const data = getDataRowsFromGrid();
+      const z0 = Number(document.getElementById("z0Input").value);
+      if (!Number.isFinite(z0) || z0 <= 0) throw new Error("Z0 必须为正数。");
+      const nStarts = Math.max(1, Math.min(80, Math.floor(Number(document.getElementById("startsInput").value))));
+      const maxIter = Math.max(100, Math.min(4000, Math.floor(Number(document.getElementById("itersInput").value))));
+      const opts = getParamOptions();
+      const bounds = {
+        lb: opts.lb.map(v => Math.log10(v)),
+        ub: opts.ub.map(v => Math.log10(v))
+      };
+      const base = clampVec(opts.init.map(v => Math.log10(v)), bounds.lb, bounds.ub);
+      const rand = makeRng(7);
+      let best = { x: base, cost: Infinity };
+
+      for (let k = 0; k < nStarts; k++) {
+        const start = k === 0 ? base : bounds.lb.map((lo, i) => lo + rand() * (bounds.ub[i] - lo));
+        const fit = nelderMead(start, data, bounds, z0, maxIter);
+        if (fit.cost < best.cost) best = fit;
+        statusBox.textContent = `拟合中：${k + 1}/${nStarts}，当前最小目标函数 ${formatNumber(best.cost, 5)}`;
+        await new Promise(requestAnimationFrame);
+      }
+
+      const paramsSI = best.x.map(v => Math.pow(10, v));
+      renderResults(paramsSI);
+
+      const hasPhase = data.some(r => ["S11", "S21", "S12", "S22"].some(s => `${s}_dB` in r && `${s}_deg` in r));
+      statusBox.className = hasPhase ? "status ok" : "status warn";
+      statusBox.textContent = hasPhase
+        ? `完成：使用复数 S 参数拟合，目标函数 ${formatNumber(best.cost, 5)}。`
+        : `完成：仅使用 dB 幅值拟合，8 参数解不保证唯一，目标函数 ${formatNumber(best.cost, 5)}。`;
+    }
+
+    function renderResults(paramsSI) {
+      lastFitParams = paramsSI.slice();
+      resultBody.innerHTML = "";
+      for (let i = 0; i < PARAMS.length; i++) {
+        const spec = PARAMS[i];
+        const readable = paramsSI[i] / spec.scale;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${spec.labelHtml}</td>
+          <td>${formatNumber(readable, 6)}</td>
+          <td>${spec.unit}</td>
+          <td>${formatSci(paramsSI[i])}</td>`;
+        resultBody.appendChild(tr);
+      }
+
+      cards.innerHTML = "";
+      const items = [
+        [PARAMS[3].labelHtml, paramsSI[3] / 1e-9, "nH"],
+        [PARAMS[5].labelHtml, paramsSI[5], "ohm"],
+        [PARAMS[0].labelHtml, paramsSI[0] / 1e-15, "fF"],
+        [PARAMS[4].labelHtml, paramsSI[4] / 1e-15, "fF"]
+      ];
+      for (const [k, v, u] of items) {
+        const div = document.createElement("div");
+        div.className = "metric";
+        div.innerHTML = `<div class="k">${k}</div><div class="v">${formatNumber(v, 5)}</div><div class="k">${u}</div>`;
+        cards.appendChild(div);
+      }
+    }
+
+    function formatNumber(v, sig = 5) {
+      if (!Number.isFinite(v)) return "-";
+      if (v === 0) return "0";
+      const av = Math.abs(v);
+      if (av >= 1e4 || av < 1e-3) return v.toExponential(sig - 1);
+      return Number(v.toPrecision(sig)).toString();
+    }
+
+    function formatSci(v) {
+      if (!Number.isFinite(v)) return "-";
+      return v.toExponential(6);
+    }
+
+    function sanitizeFileName(name) {
+      return (name || "inductor_pi_model")
+        .trim()
+        .replace(/[\\/:*?"<>|]+/g, "_")
+        .replace(/\s+/g, "_")
+        .slice(0, 80) || "inductor_pi_model";
+    }
+
+    function buildExportText() {
+      if (!lastFitParams) {
+        throw new Error("请先完成一次参数提取，再导出八参数 TXT。");
+      }
+
+      const desc = (descriptionInput.value || "").trim();
+      const formatFixed4 = v => Number.isFinite(v) ? v.toFixed(4) : "-";
+      const formatSci4 = v => Number.isFinite(v) ? v.toExponential(4) : "-";
+      const textWidth = text => Array.from(String(text)).reduce((sum, ch) => {
+        return sum + (ch.charCodeAt(0) > 255 ? 2 : 1);
+      }, 0);
+      const rows = PARAMS.map((spec, i) => [
+        labelText(spec),
+        formatFixed4(lastFitParams[i] / spec.scale),
+        spec.unit,
+        formatSci4(lastFitParams[i])
+      ]);
+      rows.unshift(["Parameter", "Value", "Unit", "SI Value"]);
+      const tabSize = 8;
+      const minGap = 8;
+      const widths = rows[0].map((_, col) => Math.max(...rows.map(row => textWidth(row[col]))));
+      const starts = [0];
+      for (let i = 1; i < widths.length; i++) {
+        starts[i] = Math.ceil((starts[i - 1] + widths[i - 1] + minGap) / tabSize) * tabSize;
+      }
+      const tabAdvance = pos => {
+        const remainder = pos % tabSize;
+        return remainder === 0 ? tabSize : tabSize - remainder;
+      };
+      const tabsTo = (from, target) => {
+        let pos = from;
+        let tabs = "";
+        while (pos < target) {
+          pos += tabAdvance(pos);
+          tabs += "\t";
+        }
+        return tabs || "\t";
+      };
+      const tabRow = values => {
+        let line = "";
+        let cursor = 0;
+        values.forEach((value, index) => {
+          const text = String(value);
+          if (index > 0) {
+            const tabs = tabsTo(cursor, starts[index]);
+            line += tabs;
+            for (const tab of tabs) {
+              cursor += tab === "\t" ? tabAdvance(cursor) : 1;
+            }
+          }
+          line += text;
+          cursor += textWidth(text);
+        });
+        return line;
+      };
+      const lines = [];
+      lines.push("Single-Pi Inductor Model Parameter Extraction");
+      lines.push("");
+      lines.push(`Description:\t\t${desc || "-"}`);
+      lines.push(`Export Time:\t\t${new Date().toLocaleString()}`);
+      lines.push(`Model:\t\t\tSingle-pi compact inductor model`);
+      lines.push("");
+      lines.push("Extracted Parameters");
+      lines.push("");
+      rows.forEach(row => lines.push(tabRow(row)));
+      lines.push("");
+      lines.push("Parameter Order");
+      lines.push("Cox\t\tCsi\t\tRsi\t\tLs\t\tCo\t\trs(DC)\t\tLp1\t\tRp1");
+      return lines.join("\n");
+    }
+
+    function exportTxt() {
+      const desc = (descriptionInput.value || "").trim();
+      const content = "\ufeff" + buildExportText().replace(/\n/g, "\r\n");
+      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.download = `${sanitizeFileName(desc)}_pi_model_params.txt`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById("loadSampleBtn").addEventListener("click", () => {
+      dataInput.value = SAMPLE;
+      const rows = parseTable(SAMPLE);
+      renderDataRows(rows);
+      statusBox.className = "status";
+      statusBox.textContent = "已载入样例数据。";
+    });
+
+    document.getElementById("clearBtn").addEventListener("click", () => {
+      dataInput.value = "";
+      renderDataRows();
+      resultBody.innerHTML = "";
+      cards.innerHTML = "";
+      lastFitParams = null;
+      statusBox.className = "status";
+      statusBox.textContent = "等待输入。";
+    });
+
+    document.getElementById("resetBoundsBtn").addEventListener("click", resetParamInputs);
+
+    reciprocalMode.addEventListener("change", updateReciprocalMode);
+
+    document.getElementById("addRowBtn").addEventListener("click", () => addDataRow());
+    document.getElementById("trimRowsBtn").addEventListener("click", trimEmptyDataRows);
+
+    exportTxtBtn.addEventListener("click", () => {
+      try {
+        exportTxt();
+      } catch (err) {
+        statusBox.className = "status warn";
+        statusBox.textContent = err.message || String(err);
+      }
+    });
+
+    sparamBody.addEventListener("click", ev => {
+      const btn = ev.target.closest("button[data-action='delete-row']");
+      if (!btn) return;
+      const tr = btn.closest("tr");
+      tr.remove();
+      if (!sparamBody.children.length) addDataRow();
+    });
+
+    document.getElementById("importCsvBtn").addEventListener("click", () => {
+      const rows = parseTable(dataInput.value);
+      renderDataRows(rows);
+      statusBox.className = "status ok";
+      statusBox.textContent = `已导入 ${rows.length} 个频点。`;
+    });
+
+    document.getElementById("fileInput").addEventListener("change", async ev => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      dataInput.value = await file.text();
+      const rows = parseTable(dataInput.value);
+      renderDataRows(rows);
+      statusBox.className = "status";
+      statusBox.textContent = `已读取文件：${file.name}，导入 ${rows.length} 个频点。`;
+    });
+
+    fitBtn.addEventListener("click", async () => {
+      fitBtn.disabled = true;
+      statusBox.className = "status";
+      statusBox.textContent = "正在解析数据。";
+      try {
+        await fitModel();
+      } catch (err) {
+        statusBox.className = "status warn";
+        statusBox.textContent = err.message || String(err);
+      } finally {
+        fitBtn.disabled = false;
+      }
+    });
+
+    renderParamInputs();
+    dataInput.value = SAMPLE;
+    const initialRows = parseTable(SAMPLE);
+    renderDataRows(initialRows);
+  </script>
+</body>
+</html>
