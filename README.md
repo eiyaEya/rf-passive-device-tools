@@ -1,60 +1,85 @@
-# RF Passive Device Tools / 射频无源器件设计工具集
+# RF Passive Device Tools
 
-This repository stores small engineering tools, scripts, examples, and notes for RF passive device design and parameter extraction.
+RF 无源器件设计工具集。
 
-本仓库用于存放射频无源器件设计、参数提取、模型验证相关的小工具、脚本、示例数据和说明文档。
+This repository stores engineering tools, scripts, examples, and notes for RF passive device design and parameter extraction.
+
+本仓库用于存放射频无源器件设计、参数提取、模型验证相关的工程工具、脚本、示例数据和说明文档。
 
 ## Repository Layout / 仓库存储层次
+
+The first-level folders are organized by project. Each project folder contains its own web tool, MATLAB scripts, examples, and documentation.
+
+仓库第一级目录按照项目分类。每个项目文件夹内部再存放该项目自己的网页版工具、MATLAB 脚本、示例数据和文档。这样同一项目的所有材料集中在一起，后续维护和迁移更清晰。
 
 ```text
 rf-passive-device-tools/
   README.md
-  tools/
-    single-pi-inductor-extractor/
+
+  single-pi-inductor-extractor/
+    README.md
+    web/
       index.html
-      README.md
-  examples/
-    single-pi-inductor-extractor/
-      sample_sparams.csv
-  matlab/
-    single-pi-inductor-extractor/
+    matlab/
       extract_single_pi_inductor.m
-  docs/
-    single-pi-inductor-extractor/
+    examples/
+      sample_sparams.csv
+    docs/
       model_equations.md
+
+  future-project-name/
+    README.md
+    web/
+    matlab/
+    examples/
+    docs/
 ```
 
 ## Directory Guide / 目录说明
 
-`tools/`
+`<project-name>/`
 
-Stores browser-based or executable engineering tools. Each independent tool should have its own subfolder. For example, the single-pi inductor extractor is stored under `tools/single-pi-inductor-extractor/`.
+A complete project package. One independent engineering task or tool should correspond to one first-level project folder.
 
-用于存放可以直接运行的工程工具，例如网页工具、可执行脚本或小型应用。每一个独立工具都应放在单独子文件夹中，例如电感单 π 模型参数提取工具放在 `tools/single-pi-inductor-extractor/`。
+一个完整的项目包。一个可以独立使用、独立维护的工程工具或研究任务，对应一个第一级项目文件夹。
 
-`examples/`
+`<project-name>/README.md`
 
-Stores example input files and test datasets. Keep examples separated by tool name so that each tool can be tested independently.
+Project-level introduction, usage guide, input/output description, and file map.
 
-用于存放示例输入文件和测试数据。建议按照工具名建立子文件夹，方便每个工具独立测试和复现实例。
+项目级说明文件，用于说明该项目的用途、使用方法、输入输出格式和文件结构。
 
-`matlab/`
+`<project-name>/web/`
 
-Stores MATLAB scripts or helper functions related to each tool. The folder structure should mirror `tools/` when possible.
+Browser-based tools, usually standalone HTML/CSS/JavaScript files.
 
-用于存放 MATLAB 版本的算法脚本或辅助函数。建议目录结构尽量与 `tools/` 保持一致，便于查找同一工具的网页版和 MATLAB 版。
+网页版工具目录，通常存放可直接用浏览器打开的 HTML/CSS/JavaScript 文件。
 
-`docs/`
+`<project-name>/matlab/`
 
-Stores derivations, model equations, notes, and usage explanations. Documentation should be separated by project or tool name.
+MATLAB scripts or functions related to the project.
 
-用于存放模型公式、推导过程、使用说明和设计笔记。建议按照项目或工具名称分类存放。
+MATLAB 脚本或函数目录，用于算法验证、批量处理或与网页版工具交叉检查。
 
-## Current Tools / 当前工具
+`<project-name>/examples/`
+
+Example input files and test datasets.
+
+示例输入文件和测试数据目录。
+
+`<project-name>/docs/`
+
+Model equations, derivations, design notes, and usage explanations.
+
+模型公式、推导过程、设计笔记和使用说明目录。
+
+## Current Projects / 当前项目
 
 ### Single-Pi Inductor Extractor / 电感单 π 模型参数提取工具
 
-Path / 路径: `tools/single-pi-inductor-extractor/index.html`
+Project path / 项目路径: `single-pi-inductor-extractor/`
+
+Web tool / 网页工具: `single-pi-inductor-extractor/web/index.html`
 
 A standalone HTML tool for extracting eight compact single-pi inductor model parameters from multi-frequency S-parameter magnitude and phase data.
 
@@ -77,18 +102,18 @@ The tool supports reciprocal/symmetric S-parameter input and supports `0 GHz` as
 
 ## Suggested Management Rules / 后续管理建议
 
-- One independent engineering tool should live in one subfolder under `tools/`.
-- Put example input data under `examples/<tool-name>/`.
-- Put MATLAB or Python scripts under `matlab/<tool-name>/` or `scripts/<tool-name>/`.
-- Put equations and design notes under `docs/<tool-name>/`.
-- Avoid putting raw measurement data or process-confidential files in this public repository.
-- Use clear file names in English so paths remain portable across EDA tools and operating systems.
+- Use one first-level folder for each independent project.
+- Keep each project's runnable tool, scripts, examples, and docs inside that project folder.
+- Use `web/` for browser tools, `matlab/` for MATLAB scripts, `examples/` for input data, and `docs/` for equations and notes.
+- If a project becomes large enough to maintain independently, it can be moved out as a separate GitHub repository with minimal restructuring.
+- Avoid putting raw measurement data, process-confidential files, layout files, or unpublished research data in this public repository.
+- Use clear English folder and file names so paths remain portable across GitHub, ADS, MATLAB, and operating systems.
 
 中文建议：
 
-- 一个可以独立使用的工程工具，对应 `tools/` 下的一个独立子文件夹。
-- 示例 S 参数、CSV 输入文件等放在 `examples/<tool-name>/`。
-- MATLAB 或 Python 版本算法放在 `matlab/<tool-name>/` 或 `scripts/<tool-name>/`。
-- 公式推导、模型解释和使用说明放在 `docs/<tool-name>/`。
-- 该仓库是 public，不建议上传真实工艺数据、测试原始数据、版图文件或任何涉密内容。
+- 每个独立项目使用一个第一级文件夹。
+- 同一项目的网页工具、MATLAB 脚本、示例数据和说明文档都放在该项目文件夹内部。
+- `web/` 放网页版工具，`matlab/` 放 MATLAB 脚本，`examples/` 放输入样例，`docs/` 放公式和笔记。
+- 如果某个项目后续变得很大，可以直接把整个项目文件夹拆分成单独仓库。
+- 该仓库是 public，不建议上传真实工艺数据、测试原始数据、版图文件或未公开研究数据。
 - 文件夹和文件名尽量使用英文，方便 GitHub、ADS、MATLAB 和不同操作系统稳定识别。
