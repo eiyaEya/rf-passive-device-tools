@@ -6,7 +6,10 @@ function result = extract_single_pi_inductor(dataFile, opts)
 %   result = extract_single_pi_inductor("inductor_sparams.csv", opts);
 %
 % Minimum CSV columns for magnitude-only fitting:
-%   freq_Hz,S11_dB,S21_dB
+%   freq_GHz,S11_dB,S21_dB
+%
+% Frequency columns may be freq_GHz/frequency_GHz or freq_Hz/frequency_Hz.
+% Generic freq/frequency/f columns are treated as Hz for backward compatibility.
 %
 % Optional symmetric-port columns:
 %   S12_dB,S22_dB
@@ -18,6 +21,8 @@ function result = extract_single_pi_inductor(dataFile, opts)
 %   Z0 = 50 ohm
 %   Zs = (rs + jwLs) || (Rp1 + jwLp1) || 1/(jwCo)
 %   Zp = 1/(jwCox) + (1/(jwCsi) || Rsi)
+%   At f = 0, a separate DC branch uses only rs(DC):
+%   S11 = rs/(2*Z0 + rs), S21 = 2*Z0/(2*Z0 + rs).
 %
 % Parameters:
 %   [Cox, Csi, Rsi, Ls, Co, rs, Lp1, Rp1]
@@ -101,9 +106,15 @@ function data = parseInputTable(T)
 names = string(T.Properties.VariableNames);
 lowerNames = lower(names);
 
-freqName = findColumn(names, lowerNames, ["freq_hz","frequency_hz","freq","frequency","f"]);
-data.freq_Hz = T.(char(freqName));
-data.freq_Hz = data.freq_Hz(:);
+freqName = findColumn(names, lowerNames, ["freq_ghz","frequency_ghz","freq_hz","frequency_hz","freq","frequency","f"]);
+freq = T.(char(freqName));
+freq = freq(:);
+assert(all(isfinite(freq)) && all(freq >= 0), 'Frequency values must be finite and non-negative.');
+if endsWith(lower(freqName), "_ghz")
+    data.freq_Hz = freq * 1e9;
+else
+    data.freq_Hz = freq;
+end
 
 for nm = ["S11","S21","S12","S22"]
     dbName = findColumn(names, lowerNames, lower(nm + "_dB"), true);
@@ -113,12 +124,14 @@ for nm = ["S11","S21","S12","S22"]
     if strlength(dbName) > 0
         db = T.(char(dbName));
         data.(dbField) = db(:);
+        assert(all(isfinite(data.(dbField))), '%s must contain only finite values.', dbField);
     else
         data.(dbField) = [];
     end
     if strlength(phName) > 0
         ph = T.(char(phName));
         data.(phField) = ph(:);
+        assert(all(isfinite(data.(phField))), '%s must contain only finite values.', phField);
     else
         data.(phField) = [];
     end
@@ -264,21 +277,43 @@ rs = p(6);
 Lp1 = p(7);
 Rp1 = p(8);
 
-w = 2*pi*freq_Hz(:);
-jw = 1j*w;
+freq_Hz = freq_Hz(:);
+S11 = complex(nan(size(freq_Hz)), nan(size(freq_Hz)));
+S21 = complex(nan(size(freq_Hz)), nan(size(freq_Hz)));
+Zs = complex(nan(size(freq_Hz)), nan(size(freq_Hz)));
+Zp = complex(nan(size(freq_Hz)), nan(size(freq_Hz)));
 
-Z_main = rs + jw .* Ls;
-Z_skin = Rp1 + jw .* Lp1;
-Z_co = 1 ./ (jw .* Co);
-Zs = parZ(Z_main, Z_skin, Z_co);
+dc = freq_Hz == 0;
+if any(dc)
+    zSeriesDc = rs;
+    normalized = zSeriesDc / Z0;
+    denominator = 2 + normalized;
+    S11(dc) = normalized / denominator;
+    S21(dc) = 2 / denominator;
+    Zs(dc) = zSeriesDc;
+    Zp(dc) = Inf;
+end
 
-Z_csi = 1 ./ (jw .* Csi);
-Z_sub = parZ(Z_csi, Rsi);
-Zp = 1 ./ (jw .* Cox) + Z_sub;
+ac = ~dc;
+if any(ac)
+    w = 2*pi*freq_Hz(ac);
+    jw = 1j*w;
 
-D = 2 .* (1 + Zs ./ Zp) + Zs ./ Z0 + ((2 .* Zp + Zs) .* Z0) ./ (Zp.^2);
-S11 = (Zs ./ Z0 - ((2 .* Zp + Zs) .* Z0) ./ (Zp.^2)) ./ D;
-S21 = 2 ./ D;
+    Z_main = rs + jw .* Ls;
+    Z_skin = Rp1 + jw .* Lp1;
+    Z_co = 1 ./ (jw .* Co);
+    Zs_ac = parZ(Z_main, Z_skin, Z_co);
+
+    Z_csi = 1 ./ (jw .* Csi);
+    Z_sub = parZ(Z_csi, Rsi);
+    Zp_ac = 1 ./ (jw .* Cox) + Z_sub;
+
+    D = 2 .* (1 + Zs_ac ./ Zp_ac) + Zs_ac ./ Z0 + ((2 .* Zp_ac + Zs_ac) .* Z0) ./ (Zp_ac.^2);
+    S11(ac) = (Zs_ac ./ Z0 - ((2 .* Zp_ac + Zs_ac) .* Z0) ./ (Zp_ac.^2)) ./ D;
+    S21(ac) = 2 ./ D;
+    Zs(ac) = Zs_ac;
+    Zp(ac) = Zp_ac;
+end
 
 model.S11 = S11;
 model.S21 = S21;
@@ -287,7 +322,6 @@ model.S22 = S11;
 model.Zs = Zs;
 model.Zp = Zp;
 end
-
 function Z = parZ(varargin)
 Y = 0;
 for k = 1:nargin
@@ -341,11 +375,11 @@ for k = 1:4
         title(nm + " not provided");
         continue;
     end
-    semilogx(data.freq_Hz, obs, "o", "LineWidth", 1.2);
+    plot(data.freq_Hz / 1e9, obs, "o", "LineWidth", 1.2);
     hold on;
-    semilogx(data.freq_Hz, 20*log10(abs(model.(char(nm)))), "-", "LineWidth", 1.6);
+    plot(data.freq_Hz / 1e9, 20*log10(abs(model.(char(nm)))), "-", "LineWidth", 1.6);
     grid on;
-    xlabel("Frequency (Hz)");
+    xlabel("Frequency (GHz)");
     ylabel(nm + " (dB)");
     legend('Measured', 'Model', 'Location', 'best');
     title(nm);
