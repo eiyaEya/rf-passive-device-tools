@@ -29,21 +29,21 @@ Standalone browser version. Open this file directly in Edge, Chrome, or another 
 
 `matlab/extract_single_pi_inductor.m`
 
-MATLAB version of the extraction workflow, useful for algorithm verification, batch processing, or comparison with the web tool.
+MATLAB version of the extraction workflow, useful for algorithm verification, batch processing, or comparison with the web tool. It supports `freq_GHz`, `frequency_GHz`, `freq_Hz`, and `frequency_Hz` input columns. Generic `freq`, `frequency`, and `f` columns are treated as Hz for backward compatibility.
 
-MATLAB 版本参数提取脚本，适合做算法验证、批量处理，或与网页版结果进行对照。
+MATLAB 版本参数提取脚本，适合做算法验证、批量处理，或与网页版结果进行对照。脚本支持 `freq_GHz`、`frequency_GHz`、`freq_Hz`、`frequency_Hz` 频率列；为兼容旧格式，`freq`、`frequency`、`f` 按 Hz 处理。
 
 `examples/sample_sparams.csv`
 
-Example S-parameter input table. Frequency is expressed in GHz.
+Example AC S-parameter input table. Frequency is expressed in GHz. The default sample intentionally does not include a DC row.
 
-S 参数输入示例文件。频率单位为 GHz。
+AC S 参数输入示例文件。频率单位为 GHz。默认样例有意不包含 DC 行，避免使用不自洽的直流示例数据。
 
 `docs/model_equations.md`
 
 Model equations, S-parameter expressions, and DC-limit explanation.
 
-模型公式、S 参数表达式和直流极限解释。
+模型公式、S 参数表达式和直流分段模型解释。
 
 ## Input / 输入
 
@@ -57,9 +57,9 @@ For reciprocal and symmetric networks, enable reciprocal mode in the page and en
 
 对于对称互易网络，可在网页中启用互易模式，只输入 `S11` 和 `S21`，程序会自动按 `S22 = S11`、`S12 = S21` 处理。
 
-`freq_GHz = 0` is supported as the DC point. At DC, capacitors are open circuits and inductors are short circuits, so the model uses only `rs(DC)` to calculate S-parameters.
+`freq_GHz = 0` is supported as a DC point. At DC, capacitors are open circuits and inductors are short circuits, so the model uses only `rs(DC)` to calculate S-parameters. For `f > 0`, the AC single-pi formula is used. This is a deliberate piecewise engineering model.
 
-支持 `freq_GHz = 0` 的直流频点。直流时电容开路、电感短路，因此模型只通过 `rs(DC)` 计算 S 参数，可用于精确约束直流串联电阻。
+支持 `freq_GHz = 0` 的直流频点。直流时电容开路、电感短路，因此模型只通过 `rs(DC)` 计算 S 参数。非零频点继续使用 AC 单 π 公式；这是有意采用的工程分段模型。
 
 ## Output Parameters / 输出参数
 
