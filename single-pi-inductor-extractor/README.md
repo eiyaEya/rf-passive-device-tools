@@ -25,7 +25,7 @@ single-pi-inductor-extractor/
 
 Standalone browser version. Open this file directly in Edge, Chrome, or another modern browser. No server or installation is required.
 
-网页版参数提取工具。可直接用 Edge、Chrome 等现代浏览器打开，不需要安装依赖，也不需要启动服务器。
+网页版参数提取工具。可直接用 Edge、Chrome 等浏览器打开，不需要安装依赖，也不需要启动服务器。
 
 `matlab/extract_single_pi_inductor.m`
 
