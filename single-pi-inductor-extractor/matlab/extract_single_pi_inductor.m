@@ -9,6 +9,7 @@ function result = extract_single_pi_inductor(dataFile, opts)
 %   freq_GHz,S11_dB,S21_dB
 %
 % Legacy frequency columns freq_Hz/frequency_Hz are also accepted.
+% Generic freq/frequency/f columns are treated as Hz for backward compatibility.
 %
 % Optional symmetric-port columns:
 %   S12_dB,S22_dB
@@ -20,6 +21,8 @@ function result = extract_single_pi_inductor(dataFile, opts)
 %   Z0 = 50 ohm
 %   Zs = (rs + jwLs) || (Rp1 + jwLp1) || 1/(jwCo)
 %   Zp = 1/(jwCox) + (1/(jwCsi) || Rsi)
+%   At f = 0, a separate DC branch uses only rs(DC):
+%   S11 = rs/(2*Z0 + rs), S21 = 2*Z0/(2*Z0 + rs)
 %
 % Parameters:
 %   [Cox, Csi, Rsi, Ls, Co, rs, Lp1, Rp1]
@@ -120,7 +123,6 @@ if opts.makePlot
     plotFit(data, model, fitComplex);
 end
 end
-
 function data = parseInputTable(T)
 names = string(T.Properties.VariableNames);
 lowerNames = lower(names);
@@ -133,7 +135,7 @@ if strlength(freqGhzName) > 0
 elseif strlength(freqHzName) > 0
     data.freq_Hz = T.(char(freqHzName));
 elseif strlength(freqBareName) > 0
-    data.freq_Hz = T.(char(freqBareName)) * 1e9;
+    data.freq_Hz = T.(char(freqBareName));
 else
     error("Required column missing. Tried: freq_GHz, frequency_GHz, freq_Hz, frequency_Hz, freq, frequency, f");
 end
