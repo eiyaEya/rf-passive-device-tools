@@ -1,95 +1,74 @@
 # RF Passive Device Tools / 射频无源器件设计工具集
 
-This repository stores engineering tools, scripts, examples, and notes for RF passive device design and parameter extraction.
+Engineering tools for RF passive-device parameter extraction, model verification, and EDA data processing.
 
-本仓库用于存放射频无源器件设计、参数提取、模型验证相关的工程工具、脚本、示例数据和说明文档。
+用于射频无源器件参数提取、模型验证和 EDA 数据处理的工程工具集。仓库中的工具面向研究与设计辅助；使用结果前，应结合公式、仿真或测量数据进行独立核对。
 
-## Repository Layout / 仓库存储层次
+## Project Overview / 项目导航
 
-The first-level folders are organized by project. Each project folder contains its relevant runnable tools, scripts, examples when applicable, and documentation.
+| Project / 项目 | Use / 用途 | Runtime / 运行环境 | Main input / 主要输入 | Main output / 主要输出 |
+|---|---|---|---|---|
+| [Single-Pi Inductor Extractor](single-pi-inductor-extractor/README.md) | Extract an eight-parameter compact single-π inductor model / 提取电感单 π 八参数紧凑模型 | Standalone browser or MATLAB / 浏览器或 MATLAB | Multi-frequency two-port S parameters / 多频点二端口 S 参数 | `Cox`, `Csi`, `Rsi`, `Ls`, `Co`, `rs(DC)`, `Lp1`, `Rp1` |
+| [ADS Tapped-Inductor Extractor](ads-tapped-inductor-extractor/README.md) | Extract N segment contributions from an N-segment tapped inductor / 提取 N 段抽头电感的分段贡献 | Linux ADS 2020 Python Datalink or Python CLI / Linux ADS 2020 Datalink 或 Python 命令行 | Swept `(N+1) × (N+1)` S matrix or Touchstone / 扫频 S 矩阵或 Touchstone | Segment inductances, mutual terms, total/sum/average comparisons / 分段电感、互感及总和与均分对比 |
 
-仓库第一级目录按照项目分类。每个项目文件夹内部再存放该项目相关的可运行工具、脚本、适用时提供的示例数据和文档。这样同一项目的所有材料集中在一起，后续维护和迁移更清晰。
+Choose the Single-Pi project when the goal is compact-model parameter fitting. Choose the ADS project when the goal is to analyze how a multi-tap winding contributes to total inductance.
+
+需要拟合紧凑模型参数时选择 Single-Pi；需要分析多抽头绕组各段对总电感的贡献时选择 ADS 抽头电感工具。
+
+### Direct Links / 快速入口
+
+Single-Pi:
+
+- [Project guide / 项目说明](single-pi-inductor-extractor/README.md)
+- [Standalone web tool / 单文件网页工具](single-pi-inductor-extractor/web/index.html)
+- [MATLAB extractor](single-pi-inductor-extractor/matlab/extract_single_pi_inductor.m)
+- [Example S-parameter table / 示例数据](single-pi-inductor-extractor/examples/sample_sparams.csv)
+- [Model equations / 模型公式](single-pi-inductor-extractor/docs/model_equations.md)
+- [Changelog / 更新日志](single-pi-inductor-extractor/CHANGELOG.md)
+
+ADS tapped-inductor:
+
+- [Project guide / 项目说明](ads-tapped-inductor-extractor/README.md)
+- [Main Python extractor / 主提取脚本](ads-tapped-inductor-extractor/python/tapped_inductor_ads2020.py)
+- [Configuration / 配置文件](ads-tapped-inductor-extractor/python/tapped_inductor_config.json)
+- [ADS 2020 Linux user guide / 中文使用说明](ads-tapped-inductor-extractor/docs/ADS2020_Linux_User_Guide_zh-CN.md)
+- [First-run setup on Linux / Linux 首次运行说明](ads-tapped-inductor-extractor/docs/Create_Scripts_on_Linux_zh-CN.md)
+
+## Repository Layout / 仓库目录
 
 ```text
 rf-passive-device-tools/
-  README.md
-
-  single-pi-inductor-extractor/
-    README.md
-    web/
-      index.html
-    matlab/
-      extract_single_pi_inductor.m
-    examples/
-      sample_sparams.csv
-    docs/
-      model_equations.md
-
-  future-project-name/
-    README.md
-    web/
-    matlab/
-    examples/
-    docs/
+├── README.md
+├── single-pi-inductor-extractor/
+│   ├── README.md
+│   ├── CHANGELOG.md
+│   ├── web/
+│   │   └── index.html
+│   ├── matlab/
+│   │   └── extract_single_pi_inductor.m
+│   ├── examples/
+│   │   └── sample_sparams.csv
+│   └── docs/
+│       └── model_equations.md
+└── ads-tapped-inductor-extractor/
+    ├── README.md
+    ├── .gitignore
+    ├── python/
+    │   ├── tapped_inductor_ads2020.py
+    │   ├── tapped_inductor_config.json
+    │   └── datalink_echo_test.py
+    └── docs/
+        ├── ADS2020_Linux_User_Guide_zh-CN.md
+        └── Create_Scripts_on_Linux_zh-CN.md
 ```
 
-## Directory Guide / 目录说明
+Each first-level folder is an independently usable and maintainable engineering project. Detailed formulas, inputs, outputs, and troubleshooting remain in the project-level README and documentation.
 
-`<project-name>/`
+每个一级目录对应一个可独立使用和维护的工程项目。完整公式、输入输出格式和故障排查保留在各项目自己的 README 与文档中。
 
-A complete project package. One independent engineering task or tool should correspond to one first-level project folder.
+## Single-Pi Inductor Extractor / 电感单 π 模型参数提取
 
-一个完整的项目包。一个可以独立使用、独立维护的工程工具或研究任务，对应一个第一级项目文件夹。
-
-`<project-name>/README.md`
-
-Project-level introduction, usage guide, input/output description, and file map.
-
-项目级说明文件，用于说明该项目的用途、使用方法、输入输出格式和文件结构。
-
-`<project-name>/web/`
-
-Browser-based tools, usually standalone HTML/CSS/JavaScript files.
-
-网页版工具目录，通常存放可直接用浏览器打开的 HTML/CSS/JavaScript 文件。
-
-`<project-name>/matlab/`
-
-MATLAB scripts or functions related to the project.
-
-MATLAB 脚本或函数目录，用于算法验证、批量处理或与网页版工具交叉检查。
-
-`<project-name>/python/`
-
-Python scripts for EDA automation, parameter extraction, batch processing, or data conversion.
-
-Python 脚本目录，用于 EDA 自动化、参数提取、批量处理或数据转换。
-
-`<project-name>/examples/`
-
-Example input files and test datasets.
-
-示例输入文件和测试数据目录。
-
-`<project-name>/docs/`
-
-Model equations, derivations, design notes, and usage explanations.
-
-模型公式、推导过程、设计笔记和使用说明目录。
-
-## Current Projects / 当前项目
-
-### Single-Pi Inductor Extractor / 电感单 π 模型参数提取工具
-
-Project path / 项目路径: `single-pi-inductor-extractor/`
-
-Web tool / 网页工具: `single-pi-inductor-extractor/web/index.html`
-
-A standalone HTML tool for extracting eight compact single-pi inductor model parameters from multi-frequency S-parameter magnitude and phase data.
-
-这是一个单文件 HTML 网页工具，可根据多频点 S 参数的幅值和相位，自动拟合电感单 π 等效模型中的 8 个参数。
-
-Extracted parameters / 提取参数:
+This project fits the following compact-model parameters:
 
 - `Cox`: oxide capacitance / 氧化层电容
 - `Csi`: silicon substrate capacitance / 硅衬底电容
@@ -97,37 +76,140 @@ Extracted parameters / 提取参数:
 - `Ls`: series inductance / 串联电感
 - `Co`: overlap or feed-through capacitance / 端口间耦合或交叠电容
 - `rs(DC)`: DC series resistance / 直流串联电阻
-- `Lp1`: auxiliary inductance in the frequency-dependent branch / 频率相关支路中的辅助电感
-- `Rp1`: auxiliary resistance in the frequency-dependent branch / 频率相关支路中的辅助电阻
+- `Lp1`: auxiliary inductance / 频率相关支路辅助电感
+- `Rp1`: auxiliary resistance / 频率相关支路辅助电阻
 
-The tool supports reciprocal/symmetric S-parameter input and supports `0 GHz` as a DC point for directly constraining `rs(DC)`.
+### Input and DC behavior / 输入与 DC 处理
 
-该工具支持对称互易网络输入模式，可以只输入 `S11` 和 `S21`。工具也支持 `0 GHz` 直流频点；在直流条件下，电容开路、电感短路，模型只通过 `rs(DC)` 计算 S 参数，因此直流点可用于精确约束直流串联电阻。
+The full input format is:
 
-### ADS Tapped-Inductor Extractor / ADS 抽头电感提取工具
+```text
+freq_GHz,S11_dB,S11_deg,S21_dB,S21_deg,S12_dB,S12_deg,S22_dB,S22_deg
+```
 
-Project path / 项目路径: `ads-tapped-inductor-extractor/`
+For reciprocal and symmetric devices, the web tool can accept only `S11` and `S21` and internally use `S22 = S11` and `S12 = S21`.
 
-Python script / Python 脚本: `ads-tapped-inductor-extractor/python/tapped_inductor_ads2020.py`
+对于对称互易器件，网页工具可以只输入 `S11` 和 `S21`，内部按 `S22 = S11`、`S12 = S21` 处理。
 
-A Linux ADS 2020 Python Datalink tool for extracting N tapped-inductor segment contributions from an `(N+1) x (N+1)` swept S-parameter matrix. It compares the segment sum with the directly extracted total inductance and compares every segment with `L_total/N`. A Touchstone command-line fallback is also included.
+- With no DC row, all eight parameters are fitted from AC data.
+- With a `0 Hz` or `0 GHz` row, `rs(DC)` is first derived from the DC S parameters and fixed; the remaining seven parameters are fitted only from non-DC points.
+- `freq_GHz` and `frequency_GHz` are interpreted as GHz.
+- `freq_Hz`, `frequency_Hz`, and the compatibility names `freq`, `frequency`, and `f` are interpreted as Hz.
 
-这是一个面向 Linux ADS 2020 Python Datalink 的多抽头电感提取工具。脚本从 `(N+1) x (N+1)` 扫频 S 参数矩阵中自动提取 N 段电感贡献，比较分段求和与总电感，并比较各段与 `L_total/N` 均分值；同时提供 Touchstone 命令行备用方式。
+- 不含 DC 行时，八个参数全部由 AC 数据拟合。
+- 含 `0 Hz` 或 `0 GHz` 行时，工具先从 DC S 参数反解并固定 `rs(DC)`，其余七个参数仅使用非 DC 频点拟合。
+- `freq_GHz`、`frequency_GHz` 按 GHz 解释；`freq_Hz`、`frequency_Hz` 及兼容列名 `freq`、`frequency`、`f` 按 Hz 解释。
 
-## Suggested Management Rules / 后续管理建议
+Magnitude-only fitting is supported, but an eight-parameter complex model is generally not unique when phase data is absent. Phase data and physically meaningful parameter bounds are strongly recommended.
 
-- Use one first-level folder for each independent project.
-- Keep each project's runnable tool, scripts, examples, and docs inside that project folder.
-- Use `web/` for browser tools, `matlab/` for MATLAB scripts, `python/` for Python scripts, `examples/` for input data, and `docs/` for equations and notes.
-- If a project becomes large enough to maintain independently, it can be moved out as a separate GitHub repository with minimal restructuring.
-- Avoid putting raw measurement data, process-confidential files, layout files, or unpublished research data in this public repository.
-- Use clear English folder and file names so paths remain portable across GitHub, ADS, MATLAB, and operating systems.
+工具支持仅使用幅值拟合，但缺少相位时，八参数复数网络的解通常不唯一。建议提供相位并结合工艺知识设置合理边界。
 
-中文建议：
+### Quick Start / 快速开始
 
-- 每个独立项目使用一个第一级文件夹。
-- 同一项目的网页工具、MATLAB/Python 脚本、示例数据和说明文档都放在该项目文件夹内部。
-- `web/` 放网页版工具，`matlab/` 放 MATLAB 脚本，`python/` 放 Python 脚本，`examples/` 放输入样例，`docs/` 放公式和笔记。
-- 如果某个项目后续变得很大，可以直接把整个项目文件夹拆分成单独仓库。
-- 该仓库是 public，不建议上传真实工艺数据、测试原始数据、版图文件或未公开研究数据。
-- 文件夹和文件名尽量使用英文，方便 GitHub、ADS、MATLAB 和不同操作系统稳定识别。
+Web version:
+
+1. Open or download [`web/index.html`](single-pi-inductor-extractor/web/index.html).
+2. Paste S-parameter table data, or start with [the sample CSV](single-pi-inductor-extractor/examples/sample_sparams.csv).
+3. Set initial values and bounds, then run the fit and export the result.
+
+MATLAB version, from the repository root:
+
+```matlab
+addpath("single-pi-inductor-extractor/matlab");
+result = extract_single_pi_inductor( ...
+    "single-pi-inductor-extractor/examples/sample_sparams.csv");
+```
+
+The Optimization Toolbox is used when available; otherwise the script falls back to bounded-penalty `fminsearch`.
+
+## ADS Tapped-Inductor Extractor / ADS 抽头电感提取
+
+For an inductor with `N` winding segments, the input must contain `N+1` signal ports numbered in physical winding order. Connect the common ground pin directly to ADS `GND`; do not add another `Term` for ground.
+
+对于 `N` 段绕组，输入必须包含沿绕组物理顺序编号的 `N+1` 个信号端口。公共地引脚直接连接 ADS `GND`，不要为地端再放置一个 `Term`。
+
+The extractor intentionally uses the selected single-ended, port-`j`-shorted definition. It is not a differential-inductance extractor. Full formulas are documented in the [project guide](ads-tapped-inductor-extractor/README.md).
+
+脚本采用当前选定的单端、端口 `j` 短路等效定义，不是差分电感提取器。完整公式见[项目说明](ads-tapped-inductor-extractor/README.md)。
+
+### Requirements / 运行要求
+
+- ADS path: Linux Keysight ADS 2020 with Python Datalink.
+- Touchstone path: Python 3 with NumPy.
+- Matplotlib is optional and is used only for PNG plots.
+- Touchstone input must contain a full S-parameter matrix with `segments + 1` ports.
+
+### Quick Start / 快速开始
+
+Run the built-in numerical test:
+
+```bash
+cd ads-tapped-inductor-extractor/python
+python3 tapped_inductor_ads2020.py --self-test
+```
+
+For ADS Data Display:
+
+```text
+TI=dl_python("tapped_inductor_ads2020.py","columnformat",S)
+```
+
+For a Touchstone file:
+
+```bash
+python3 tapped_inductor_ads2020.py \
+  --touchstone /path/to/model.s5p \
+  --segments 4
+```
+
+The extractor reports all path inductances `Ls(i,j)`, segment self-inductances, mutual terms, each segment's total contribution, direct total inductance, summed contribution, `L_total/N`, deviations, CSV output, a column map, and optional PNG plots.
+
+脚本输出全部路径电感、分段自感、互感、各段综合贡献、直接提取的总电感、分段求和、`L_total/N` 均分值与偏差，并可生成 CSV、列映射和 PNG 图。
+
+## Validation Status and Limits / 验证状态与限制
+
+These are manual validation results, not continuous-integration guarantees.
+
+以下为人工验证结果，并非持续集成保证。
+
+| Component / 组件 | Current status / 当前状态 |
+|---|---|
+| Single-Pi web tool | Inline JavaScript syntax check passed on 2026-08-04 / 内嵌 JavaScript 语法检查已于 2026-08-04 通过 |
+| Single-Pi MATLAB extractor | DC regression with known `rs(DC) = 2 Ω` passed on 2026-08-04; bare `freq` was verified as Hz / 已通过已知 `rs(DC)=2 Ω` 的 DC 回归，并确认裸 `freq` 按 Hz 读取 |
+| ADS Python core | Built-in `--self-test` passed in a standard Python environment with NumPy on 2026-08-04 / 内置数值自检已通过 |
+| ADS 2020 Datalink | First integration run is still required on a machine with ADS 2020 installed / 仍需在实际安装 ADS 2020 的电脑上完成首次联调 |
+
+Additional limits:
+
+- Parameter extraction is model-dependent; numerical agreement does not by itself prove physical validity.
+- The ADS segment-sum comparison is algebraically related to the same extracted path inductances and is not a fully independent physical validation.
+- Results near or above self-resonance may become large, negative, or discontinuous.
+- Always confirm port order, frequency units, reference impedance, and model assumptions.
+
+其他限制：
+
+- 参数提取依赖模型定义；数值一致不等于已经完成独立的物理验证。
+- ADS 的分段求和比较由同一组路径电感构造，不是完全独立的物理验证。
+- 接近或超过自谐振频率时，等效电感可能出现大值、负值或突变。
+- 使用前必须确认端口顺序、频率单位、参考阻抗和模型假设。
+
+## Repository Conventions / 仓库维护约定
+
+- Use one first-level English-named folder for each independent project.
+- Keep runnable tools, scripts, examples, and documentation inside the corresponding project folder.
+- Use `web/` for browser tools, `matlab/` for MATLAB code, `python/` for Python code, `examples/` for public or synthetic samples, and `docs/` for equations and guides.
+- Update the project README and changelog when behavior changes; update this root README when a project is added or its public status changes.
+- Do not upload raw measurement data, process-confidential files, layout files, credentials, or unpublished research data to this public repository.
+
+- 每个独立项目使用一个英文一级目录。
+- 可运行工具、脚本、示例和文档放在对应项目目录内。
+- `web/`、`matlab/`、`python/`、`examples/`、`docs/` 分别存放相应类型的内容。
+- 行为发生变化时同步更新项目 README 和更新日志；新增项目或公开状态改变时同步更新本主 README。
+- 本仓库公开，禁止上传原始测量数据、工艺机密、版图文件、凭据或未公开研究数据。
+
+## References / 参考资料
+
+Project-specific formulas and references are maintained with each tool:
+
+- [Single-Pi model equations](single-pi-inductor-extractor/docs/model_equations.md)
+- [ADS extraction formulas and official references](ads-tapped-inductor-extractor/README.md)
