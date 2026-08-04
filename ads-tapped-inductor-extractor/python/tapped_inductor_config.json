@@ -1,0 +1,11 @@
+{
+  "segments": 4,
+  "input_kind": "S",
+  "reference_impedance_ohm": 50.0,
+  "inductance_sign": -1.0,
+  "output_unit": "nH",
+  "results_directory": "tapped_inductor_results",
+  "write_csv": true,
+  "write_plots": true,
+  "denominator_relative_tolerance": 1e-12
+}
