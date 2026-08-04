@@ -555,6 +555,7 @@
     const descriptionInput = document.getElementById("descriptionInput");
     const exportTxtBtn = document.getElementById("exportTxtBtn");
     let lastFitParams = null;
+    let lastFitMeta = null;
 
     function c(re, im = 0) { return { re, im }; }
     function cAdd(a, b) { return c(a.re + b.re, a.im + b.im); }
@@ -750,6 +751,83 @@
       return rows.sort((a, b) => a.freq_Hz - b.freq_Hz);
     }
 
+    function isDcRow(row) {
+      return Math.abs(row.freq_Hz) <= 1e-9;
+    }
+
+    function median(values) {
+      const sorted = values.slice().sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid] : 0.5 * (sorted[mid - 1] + sorted[mid]);
+    }
+
+    function finiteComplex(z) {
+      return Number.isFinite(z.re) && Number.isFinite(z.im);
+    }
+
+    function acceptRsDcEstimate(rsComplex, source, warnings) {
+      if (!finiteComplex(rsComplex)) return null;
+      const imagLimit = Math.max(0.02, Math.abs(rsComplex.re) * 0.05);
+      if (Math.abs(rsComplex.im) > imagLimit) {
+        warnings.push(`DC ${source} 反解得到的 rs(DC) 含明显虚部，已仅采用实部。`);
+      }
+      if (rsComplex.re < -1e-9) return null;
+      return Math.max(0, rsComplex.re);
+    }
+
+    function estimateRsDcFromRows(data, z0) {
+      const dcRows = data.filter(isDcRow);
+      if (!dcRows.length) return null;
+
+      const s21Estimates = [];
+      const s11Estimates = [];
+      const warnings = [];
+
+      for (const row of dcRows) {
+        if ("S21_dB" in row) {
+          const s21 = cFromPolar(Math.pow(10, row.S21_dB / 20), row.S21_deg ?? 0);
+          if (cAbs(s21) > 1e-12) {
+            const rsComplex = cScale(cSub(cInv(s21), c(1, 0)), 2 * z0);
+            const value = acceptRsDcEstimate(rsComplex, "S21", warnings);
+            if (value !== null) s21Estimates.push(value);
+          }
+        }
+
+        if ("S11_dB" in row) {
+          const s11 = cFromPolar(Math.pow(10, row.S11_dB / 20), row.S11_deg ?? 0);
+          const denom = cSub(c(1, 0), s11);
+          if (cAbs(denom) > 1e-12) {
+            const rsComplex = cScale(cDiv(s11, denom), 2 * z0);
+            const value = acceptRsDcEstimate(rsComplex, "S11", warnings);
+            if (value !== null) s11Estimates.push(value);
+          }
+        }
+      }
+
+      const source = s21Estimates.length ? "S21" : "S11";
+      const estimates = s21Estimates.length ? s21Estimates : s11Estimates;
+      if (!estimates.length) {
+        throw new Error("检测到 DC 频点，但无法从 DC S 参数解析出有效的 rs(DC)。请检查 0 Hz 行，或删除 DC 行后进行 8 参数拟合。");
+      }
+
+      if (s21Estimates.length && s11Estimates.length) {
+        const rs21 = median(s21Estimates);
+        const rs11 = median(s11Estimates);
+        const diff = Math.abs(rs21 - rs11);
+        const scale = Math.max(Math.abs(rs21), Math.abs(rs11), 1e-12);
+        if (diff / scale > 0.2) {
+          warnings.push("DC 点由 S21 和 S11 反解的 rs(DC) 差异较大；已优先采用 S21。");
+        }
+      }
+
+      return {
+        rs: median(estimates),
+        source,
+        count: dcRows.length,
+        warnings
+      };
+    }
+
     function singlePiSparams(freqs, p, z0) {
       const [Cox, Csi, Rsi, Ls, Co, rs, Lp1, Rp1] = p;
       const out = { S11: [], S21: [], S12: [], S22: [] };
@@ -794,8 +872,16 @@
       return out;
     }
 
-    function residualVector(x, data, bounds, z0) {
-      const p = x.map(v => Math.pow(10, v));
+    function expandParams(x, activeIndices, baseParams) {
+      const p = baseParams.slice();
+      for (let i = 0; i < activeIndices.length; i++) {
+        p[activeIndices[i]] = Math.pow(10, x[i]);
+      }
+      return p;
+    }
+
+    function residualVector(x, data, bounds, z0, activeIndices, baseParams) {
+      const p = expandParams(x, activeIndices, baseParams);
       const freqs = data.map(r => r.freq_Hz);
       const model = singlePiSparams(freqs, p, z0);
       const res = [];
@@ -821,8 +907,8 @@
       return res;
     }
 
-    function objective(x, data, bounds, z0) {
-      const r = residualVector(x, data, bounds, z0);
+    function objective(x, data, bounds, z0, activeIndices, baseParams) {
+      const r = residualVector(x, data, bounds, z0, activeIndices, baseParams);
       let sum = 0;
       for (const v of r) {
         if (!Number.isFinite(v)) return 1e100;
@@ -843,7 +929,7 @@
       return x.map((v, i) => Math.min(Math.max(v, lb[i]), ub[i]));
     }
 
-    function nelderMead(start, data, bounds, z0, maxIter) {
+    function nelderMead(start, data, bounds, z0, maxIter, activeIndices, baseParams) {
       const n = start.length;
       const simplex = [clampVec(start.slice(), bounds.lb, bounds.ub)];
       for (let i = 0; i < n; i++) {
@@ -852,7 +938,7 @@
         point[i] += step;
         simplex.push(clampVec(point, bounds.lb, bounds.ub));
       }
-      let vals = simplex.map(x => objective(x, data, bounds, z0));
+      let vals = simplex.map(x => objective(x, data, bounds, z0, activeIndices, baseParams));
       const alpha = 1, gamma = 2, rho = 0.5, sigma = 0.5;
 
       for (let iter = 0; iter < maxIter; iter++) {
@@ -871,11 +957,11 @@
 
         const worst = simplex[n];
         const reflected = clampVec(centroid.map((v, j) => v + alpha * (v - worst[j])), bounds.lb, bounds.ub);
-        const fRef = objective(reflected, data, bounds, z0);
+        const fRef = objective(reflected, data, bounds, z0, activeIndices, baseParams);
 
         if (fRef < vals[0]) {
           const expanded = clampVec(centroid.map((v, j) => v + gamma * (reflected[j] - v)), bounds.lb, bounds.ub);
-          const fExp = objective(expanded, data, bounds, z0);
+          const fExp = objective(expanded, data, bounds, z0, activeIndices, baseParams);
           simplex[n] = fExp < fRef ? expanded : reflected;
           vals[n] = Math.min(fExp, fRef);
         } else if (fRef < vals[n - 1]) {
@@ -883,14 +969,14 @@
           vals[n] = fRef;
         } else {
           const contracted = clampVec(centroid.map((v, j) => v + rho * (worst[j] - v)), bounds.lb, bounds.ub);
-          const fCon = objective(contracted, data, bounds, z0);
+          const fCon = objective(contracted, data, bounds, z0, activeIndices, baseParams);
           if (fCon < vals[n]) {
             simplex[n] = contracted;
             vals[n] = fCon;
           } else {
             for (let i = 1; i <= n; i++) {
               simplex[i] = clampVec(simplex[0].map((v, j) => v + sigma * (simplex[i][j] - v)), bounds.lb, bounds.ub);
-              vals[i] = objective(simplex[i], data, bounds, z0);
+              vals[i] = objective(simplex[i], data, bounds, z0, activeIndices, baseParams);
             }
           }
         }
@@ -907,30 +993,43 @@
       const nStarts = Math.max(1, Math.min(80, Math.floor(Number(document.getElementById("startsInput").value))));
       const maxIter = Math.max(100, Math.min(4000, Math.floor(Number(document.getElementById("itersInput").value))));
       const opts = getParamOptions();
+      const dcInfo = estimateRsDcFromRows(data, z0);
+      const activeIndices = dcInfo ? PARAMS.map((_, i) => i).filter(i => i !== 5) : PARAMS.map((_, i) => i);
+      const fitData = dcInfo ? data.filter(r => !isDcRow(r)) : data;
+      if (dcInfo && !fitData.length) {
+        throw new Error("已从 DC 点解析出 rs(DC)，但还需要至少一个非 DC 频点来拟合其余 7 个参数。");
+      }
+      const baseParams = opts.init.slice();
+      if (dcInfo) baseParams[5] = dcInfo.rs;
       const bounds = {
-        lb: opts.lb.map(v => Math.log10(v)),
-        ub: opts.ub.map(v => Math.log10(v))
+        lb: activeIndices.map(i => Math.log10(opts.lb[i])),
+        ub: activeIndices.map(i => Math.log10(opts.ub[i]))
       };
-      const base = clampVec(opts.init.map(v => Math.log10(v)), bounds.lb, bounds.ub);
+      const base = clampVec(activeIndices.map(i => Math.log10(opts.init[i])), bounds.lb, bounds.ub);
       const rand = makeRng(7);
       let best = { x: base, cost: Infinity };
 
       for (let k = 0; k < nStarts; k++) {
         const start = k === 0 ? base : bounds.lb.map((lo, i) => lo + rand() * (bounds.ub[i] - lo));
-        const fit = nelderMead(start, data, bounds, z0, maxIter);
+        const fit = nelderMead(start, fitData, bounds, z0, maxIter, activeIndices, baseParams);
         if (fit.cost < best.cost) best = fit;
         statusBox.textContent = `拟合中：${k + 1}/${nStarts}，当前最小目标函数 ${formatNumber(best.cost, 5)}`;
         await new Promise(requestAnimationFrame);
       }
 
-      const paramsSI = best.x.map(v => Math.pow(10, v));
+      const paramsSI = expandParams(best.x, activeIndices, baseParams);
       renderResults(paramsSI);
+      lastFitMeta = dcInfo ? { fixedRsDc: true, rsDcSource: dcInfo.source, dcCount: dcInfo.count, warnings: dcInfo.warnings } : { fixedRsDc: false };
 
-      const hasPhase = data.some(r => ["S11", "S21", "S12", "S22"].some(s => `${s}_dB` in r && `${s}_deg` in r));
+      const hasPhase = fitData.some(r => ["S11", "S21", "S12", "S22"].some(s => `${s}_dB` in r && `${s}_deg` in r));
+      const dcText = dcInfo
+        ? `已由 DC ${dcInfo.source} 单独解析并固定 rs(DC)=${formatNumber(dcInfo.rs, 6)} ohm；其余 7 参数使用非 DC 频点拟合。`
+        : "";
+      const warningText = dcInfo && dcInfo.warnings.length ? ` ${dcInfo.warnings.join(" ")}` : "";
       statusBox.className = hasPhase ? "status ok" : "status warn";
       statusBox.textContent = hasPhase
-        ? `完成：使用复数 S 参数拟合，目标函数 ${formatNumber(best.cost, 5)}。`
-        : `完成：仅使用 dB 幅值拟合，8 参数解不保证唯一，目标函数 ${formatNumber(best.cost, 5)}。`;
+        ? `完成：使用复数 S 参数拟合，目标函数 ${formatNumber(best.cost, 5)}。${dcText}${warningText}`
+        : `完成：仅使用 dB 幅值拟合，参数解不保证唯一，目标函数 ${formatNumber(best.cost, 5)}。${dcText}${warningText}`;
     }
 
     function renderResults(paramsSI) {
@@ -1045,6 +1144,9 @@
       lines.push(`Description:\t\t${desc || "-"}`);
       lines.push(`Export Time:\t\t${new Date().toLocaleString()}`);
       lines.push(`Model:\t\t\tSingle-pi compact inductor model`);
+      if (lastFitMeta && lastFitMeta.fixedRsDc) {
+        lines.push(`rs(DC) Source:\t\tDC ${lastFitMeta.rsDcSource}, fixed before fitting the other 7 parameters`);
+      }
       lines.push("");
       lines.push("Extracted Parameters");
       lines.push("");
@@ -1081,6 +1183,7 @@
       resultBody.innerHTML = "";
       cards.innerHTML = "";
       lastFitParams = null;
+      lastFitMeta = null;
       statusBox.className = "status";
       statusBox.textContent = "等待输入。";
     });
